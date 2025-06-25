@@ -25,6 +25,7 @@ const __dirname = dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 5000;
 connectDB();
+app.use(express.json());
 
 const allowedOrigins = [
   'https://request-hub-services.vercel.app',

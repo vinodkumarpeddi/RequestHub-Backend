@@ -122,6 +122,7 @@ The RequestHub Team`,
 
 export const login = async (req, res) => {
     const { email, password } = req.body;
+    console.log("Login attempt with email:", email);
 
     try {
         if (!email || !password) {
