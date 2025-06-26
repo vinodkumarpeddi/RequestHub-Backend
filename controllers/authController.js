@@ -7,17 +7,16 @@ const generateToken = (userId) => {
     return jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: "30d" });
 };
 
-const getCookieOptions = (req) => {
-    const isLocalhost = req.headers.origin?.includes('localhost');
-    return {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-        maxAge: 30 * 24 * 60 * 60 * 1000,
-        domain: isLocalhost ? undefined : ".yourdomain.com",
-        path: "/"
-    };
+const getCookieOptions = () => {
+  return {
+    httpOnly: true,
+    secure: true, // Required for HTTPS (Render uses HTTPS)
+    sameSite: "None", // Required for cross-origin cookies
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    path: "/"
+  };
 };
+
 
 const sendEmail = async (mailOptions) => {
     return new Promise((resolve, reject) => {
