@@ -91,6 +91,8 @@ export const approveApplication = async (req, res) => {
       { new: true }
     );
 
+    console.log("Application found:", res); 
+
     if (!application) {
       return res.status(404).json({ error: "Application not found" });
     }
