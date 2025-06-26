@@ -86,7 +86,6 @@ export const approveApplication = async (req, res) => {
 
   console.log("Response:", id);
 
-
   try {
     const application = await FormModel.findByIdAndUpdate(
       id,
@@ -138,12 +137,12 @@ export const approveApplication = async (req, res) => {
 };
 
 export const rejectApplication = async (req, res) => {
-  const { id, reason } = req.body;
+  const { id} = req.body;
 
   try {
     const application = await FormModel.findByIdAndUpdate(
       id,
-      { status: "Rejected", rejectionReason: reason },
+      { status: "Rejected"},
       { new: true }
     );
 
