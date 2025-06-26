@@ -12,7 +12,7 @@ const formSchema = new mongoose.Schema({
   email: String,
   offerLetterPath: String,
   status: { type: String, default: "Pending" },
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
 });
 
 export default mongoose.model("FormSubmission", formSchema);
