@@ -120,8 +120,8 @@ RequestHub Team
 
 // Reject an application
 export const rejectApplication = async (req, res) => {
-  const { id } = req.params;
-  const { reason } = req.body;
+  const { id } = req.params;  // ✅ From URL
+  const { reason } = req.body; // ✅ From body
 
   try {
     const application = await FormModel.findByIdAndUpdate(
@@ -133,44 +133,42 @@ export const rejectApplication = async (req, res) => {
     if (!application) return res.status(404).json({ error: "Application not found" });
 
     const emailContent = `
-Your internship application has been Rejected.
+      Your internship application has been Rejected.
 
-Application Details:
-Name: ${application.name}
-Roll Number: ${application.rollNumber}
-College: ${application.college}
-Internship Institute: ${application.internshipInstitute}
-Start Date: ${new Date(application.startDate).toLocaleDateString()}
-End Date: ${new Date(application.endDate).toLocaleDateString()}
+      Name: ${application.name}
+      Roll Number: ${application.rollNumber}
+      College: ${application.college}
+      Internship Institute: ${application.internshipInstitute}
+      Start Date: ${application.startDate}
+      End Date: ${application.endDate}
 
-Reason for Rejection: ${reason || 'Not specified'}
+      Reason for Rejection: ${reason || 'Not specified'}
 
-Regards,
-RequestHub Team
+      Regards,
+      RequestHub Team
     `;
 
-    const attachments = application.offerLetterPath
-      ? [{
-          filename: 'Rejected_Offer_Letter.pdf',
-          path: application.offerLetterPath,
-          contentType: 'application/pdf'
-        }]
-      : [];
+    const attachments = application.offerLetterPath ? [{
+      filename: 'Rejected_Offer_Letter.pdf',
+      path: application.offerLetterPath,
+      contentType: 'application/pdf'
+    }] : [];
 
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: application.email,
-      subject: "❌ Internship Application Rejected",
+      subject: "Internship Application Rejected",
       text: emailContent,
       attachments
     });
 
     res.status(200).json({ success: true, application });
   } catch (error) {
-    console.error("Reject Application Error:", error);
+    console.error("Error rejecting application:", error);
     res.status(500).json({ error: "Failed to reject application" });
   }
 };
+
 
 // Delete an application
 export const deleteApplication = async (req, res) => {
