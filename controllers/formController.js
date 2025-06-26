@@ -84,6 +84,9 @@ export const getApplications = async (req, res) => {
 export const approveApplication = async (req, res) => {
   const { id } = req.body;
 
+  console.log("Response:", id);
+
+
   try {
     const application = await FormModel.findByIdAndUpdate(
       id,
@@ -91,7 +94,6 @@ export const approveApplication = async (req, res) => {
       { new: true }
     );
 
-    console.log("Application found:", res); 
 
     if (!application) {
       return res.status(404).json({ error: "Application not found" });
