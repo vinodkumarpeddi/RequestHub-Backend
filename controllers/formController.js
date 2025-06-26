@@ -13,214 +13,190 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Submit new internship form
 export const submitForm = async (req, res) => {
+  const {
+    name, rollNumber, college, branch, semester,
+    internshipInstitute, startDate, endDate, email
+  } = req.body;
+  const offerLetterPath = req.file ? req.file.path : null;
+
   try {
-    const {
+    const formData = new FormModel({
       name, rollNumber, college, branch, semester,
-      internshipInstitute, email, startDate, endDate
-    } = req.body;
+      internshipInstitute, startDate, endDate, email, offerLetterPath
+    });
+    await formData.save();
 
-    if (!name || !rollNumber || !college || !branch || !semester ||
-        !internshipInstitute || !email || !startDate || !endDate) {
-      return res.status(400).json({ success: false, message: "All fields are required" });
+    const emailContent = `
+      Name: ${name}
+      Roll Number: ${rollNumber}
+      College: ${college}
+      Branch: ${branch}
+      Semester: ${semester}
+      Internship Institute: ${internshipInstitute}
+      Start Date: ${startDate}
+      End Date: ${endDate}
+      Status: Pending
+    `;
+
+    const attachments = [];
+    if (offerLetterPath) {
+      attachments.push({
+        filename: req.file.originalname || 'offer_letter.pdf',
+        path: offerLetterPath,
+        contentType: 'application/pdf'
+      });
     }
 
-    if (!req.file) {
-      return res.status(400).json({ success: false, message: "Offer letter file is required" });
-    }
-
-    const newSubmission = new FormModel({
-      name,
-      rollNumber,
-      college,
-      branch,
-      semester,
-      internshipInstitute,
-      email,
-      startDate,
-      endDate,
-      offerLetterPath: req.file.path,
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "✅Internship Application Form Submission",
+      text: `Your application has been submitted successfully.\n\n${emailContent}`,
+      attachments: attachments
     });
 
-    await newSubmission.save();
-
-    res.status(201).json({
-      success: true,
-      message: "Internship form submitted successfully",
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: process.env.ADMIN_EMAIL,
+      subject: "📩New Internship Application",
+      text: `New Internship application received:\n\n${emailContent}`,
+      attachments: attachments
     });
 
-  } catch (err) {
-    console.error("submitForm error:", err);
-    res.status(500).json({ success: false, message: "Server error. Try again later." });
+    res.status(200).json({ success: true, message: "Form submitted and emails sent!" });
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ success: false, message: "Something went wrong." });
   }
 };
 
-// Get all applications
 export const getApplications = async (req, res) => {
   try {
     const applications = await FormModel.find().sort({ createdAt: -1 });
     res.status(200).json(applications);
   } catch (error) {
-    console.error("Fetch Applications Error:", error);
+    console.error("Error fetching applications:", error);
     res.status(500).json({ error: "Failed to fetch applications" });
   }
 };
 
-// Approve an application
 export const approveApplication = async (req, res) => {
-  try {
-    const { id } = req.body;
-    
-    // Validate ID
-    if (!id || id.length !== 24) {
-      return res.status(400).json({ 
-        success: false, 
-        error: "Invalid application ID" 
-      });
-    }
+  const { id } = req.body;
 
-    // Update application status
+  try {
     const application = await FormModel.findByIdAndUpdate(
       id,
       { status: "Approved" },
-      { new: true, runValidators: true }
+      { new: true }
     );
 
     if (!application) {
-      return res.status(404).json({ 
-        success: false, 
-        error: "Application not found" 
+      return res.status(404).json({ error: "Application not found" });
+    }
+
+    const emailContent = `
+      Your internship application has been Approved!
+     
+      Application Details:
+      Name: ${application.name}
+      Roll Number: ${application.rollNumber}
+      College: ${application.college}
+      Internship Institute: ${application.internshipInstitute}
+      Start Date: ${application.startDate}
+      End Date: ${application.endDate}
+      \n\n Regards
+      \n RequestHub Team
+    `;
+
+    const attachments = [];
+    if (application.offerLetterPath) {
+      attachments.push({
+        filename: 'Approval_Offer_Letter.pdf',
+        path: application.offerLetterPath,
+        contentType: 'application/pdf'
       });
     }
 
-    // Send approval email
-    if (application.email) {
-      const emailContent = `
-        <h2>Your internship application has been approved!</h2>
-        <p><strong>Details:</strong></p>
-        <ul>
-          <li>Name: ${application.name}</li>
-          <li>Roll Number: ${application.rollNumber}</li>
-          <li>Institute: ${application.internshipInstitute}</li>
-          <li>Duration: ${new Date(application.startDate).toLocaleDateString()} - 
-              ${new Date(application.endDate).toLocaleDateString()}</li>
-        </ul>
-        <p>Congratulations!</p>
-      `;
-
-      await transporter.sendMail({
-        from: `"RequestHub" <${process.env.EMAIL_USER}>`,
-        to: application.email,
-        subject: "Internship Application Approved",
-        html: emailContent,
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Application approved successfully",
-      data: application
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: application.email,
+      subject: "Internship Application Approved",
+      text: emailContent,
+      attachments: attachments
     });
 
+    res.status(200).json({ success: true, application });
   } catch (error) {
-    console.error("Approval Error:", error);
-    res.status(500).json({ 
-      success: false, 
-      error: "Internal server error",
-      details: error.message 
-    });
+    console.error("Error approving application:", error);
+    res.status(500).json({ error: "Failed to approve application" });
   }
 };
 
-// Reject an application
 export const rejectApplication = async (req, res) => {
+  const { id, reason } = req.body;
+
   try {
-    const { id, reason } = req.body;
-    
-    // Validate input
-    if (!id || id.length !== 24) {
-      return res.status(400).json({ 
-        success: false, 
-        error: "Invalid application ID" 
-      });
-    }
-
-    if (!reason || reason.trim().length < 5) {
-      return res.status(400).json({ 
-        success: false, 
-        error: "Please provide a valid rejection reason (min 5 characters)" 
-      });
-    }
-
-    // Update application status
     const application = await FormModel.findByIdAndUpdate(
       id,
-      { 
-        status: "Rejected",
-        rejectionReason: reason.trim() 
-      },
-      { new: true, runValidators: true }
+      { status: "Rejected", rejectionReason: reason },
+      { new: true }
     );
 
     if (!application) {
-      return res.status(404).json({ 
-        success: false, 
-        error: "Application not found" 
+      return res.status(404).json({ error: "Application not found" });
+    }
+
+    const emailContent = `
+      Your internship application has been Rejected.
+     
+      Application Details:
+      Name: ${application.name}
+      Roll Number: ${application.rollNumber}
+      College: ${application.college}
+      Internship Institute: ${application.internshipInstitute}
+      Start Date: ${application.startDate}
+      End Date: ${application.endDate}
+     
+      Reason for Rejection: ${reason || 'Not specified'}
+     
+      \n\nRegards,
+      \nRequestHub Team
+    `;
+
+    const attachments = [];
+    if (application.offerLetterPath) {
+      attachments.push({
+        filename: 'Rejected_Offer_Letter.pdf',
+        path: application.offerLetterPath,
+        contentType: 'application/pdf'
       });
     }
 
-    // Send rejection email
-    if (application.email) {
-      const emailContent = `
-        <h2>Your internship application status</h2>
-        <p>We regret to inform you that your application has been rejected.</p>
-        
-        <p><strong>Details:</strong></p>
-        <ul>
-          <li>Name: ${application.name}</li>
-          <li>Roll Number: ${application.rollNumber}</li>
-          <li>Institute: ${application.internshipInstitute}</li>
-        </ul>
-        
-        <p><strong>Reason for rejection:</strong></p>
-        <p>${reason}</p>
-        
-        <p>Please contact the admin office if you have any questions.</p>
-      `;
-
-      await transporter.sendMail({
-        from: `"RequestHub" <${process.env.EMAIL_USER}>`,
-        to: application.email,
-        subject: "Internship Application Decision",
-        html: emailContent,
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Application rejected successfully",
-      data: application
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: application.email,
+      subject: "Internship Application Rejected",
+      text: emailContent,
+      attachments: attachments
     });
 
+    res.status(200).json({ success: true, application });
   } catch (error) {
-    console.error("Rejection Error:", error);
-    res.status(500).json({ 
-      success: false, 
-      error: "Internal server error",
-      details: error.message 
-    });
+    console.error("Error rejecting application:", error);
+    res.status(500).json({ error: "Failed to reject application" });
   }
 };
 
-
-// Delete an application
 export const deleteApplication = async (req, res) => {
   const { id } = req.params;
 
   try {
     const application = await FormModel.findByIdAndDelete(id);
-    if (!application) return res.status(404).json({ error: "Application not found" });
+
+    if (!application) {
+      return res.status(404).json({ error: "Application not found" });
+    }
 
     if (application.offerLetterPath) {
       fs.unlink(application.offerLetterPath, (err) => {
@@ -230,40 +206,37 @@ export const deleteApplication = async (req, res) => {
 
     res.status(200).json({ success: true });
   } catch (error) {
-    console.error("Delete Application Error:", error);
+    console.error("Error deleting application:", error);
     res.status(500).json({ error: "Failed to delete application" });
   }
 };
 
-// Get all approved applications
 export const getApprovedApplications = async (req, res) => {
   try {
     const applications = await FormModel.find({ status: 'Approved' }).sort({ createdAt: -1 });
     res.status(200).json(applications);
   } catch (error) {
-    console.error("Get Approved Error:", error);
-    res.status(500).json({ error: "Failed to fetch approved applications" });
+    console.error("Error fetching applications:", error);
+    res.status(500).json({ error: "Failed to fetch applications" });
   }
 };
 
-// Get all rejected applications
 export const getRejectedApplications = async (req, res) => {
   try {
     const applications = await FormModel.find({ status: 'Rejected' }).sort({ createdAt: -1 });
     res.status(200).json(applications);
   } catch (error) {
-    console.error("Get Rejected Error:", error);
-    res.status(500).json({ error: "Failed to fetch rejected applications" });
+    console.error("Error fetching applications:", error);
+    res.status(500).json({ error: "Failed to fetch applications" });
   }
 };
 
-// Get all pending applications
 export const getPendingApplications = async (req, res) => {
   try {
     const applications = await FormModel.find({ status: 'Pending' }).sort({ createdAt: -1 });
     res.status(200).json(applications);
   } catch (error) {
-    console.error("Get Pending Error:", error);
-    res.status(500).json({ error: "Failed to fetch pending applications" });
+    console.error("Error fetching applications:", error);
+    res.status(500).json({ error: "Failed to fetch applications" });
   }
 };
