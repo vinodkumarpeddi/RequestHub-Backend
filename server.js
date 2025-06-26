@@ -4,7 +4,7 @@ import 'dotenv/config';
 import cookieParser from 'cookie-parser';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-
+import path from 'path';
 import connectDB from './config/mongodb.js';
 
 import authRouter from './routes/authRoutes.js';
@@ -35,11 +35,10 @@ const allowedOrigins = [
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);  
-      
-    } else {
-      callback(new Error('Not allowed by CORS'));
+      return callback(null, true);
     }
+    console.error("Blocked by CORS: ", origin);
+    return callback(new Error("Not allowed by CORS"));
   },
   credentials: true
 }));
@@ -56,7 +55,7 @@ app.use((req, res, next) => {
 });
 
 // 🟢 Static File Serving
-app.use("/uploads", express.static("uploads"));
+app.use("/uploads", express.static(path.resolve("uploads")));
 app.use("/hackathonuploads", express.static(join(__dirname, "hackathonuploads")));
 app.use("/pdfs", express.static(join(__dirname, "pdfs")));
 app.use("/Idpdfs", express.static(join(__dirname, "Idpdfs")));

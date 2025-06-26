@@ -15,62 +15,44 @@ const transporter = nodemailer.createTransport({
 
 // Submit new internship form
 export const submitForm = async (req, res) => {
-  const {
-    name, rollNumber, college, branch, semester,
-    internshipInstitute, startDate, endDate, email
-  } = req.body;
-
-  const offerLetterPath = req.file?.path || null;
-
   try {
-    const formData = new FormModel({
+    const {
       name, rollNumber, college, branch, semester,
-      internshipInstitute, startDate, endDate, email, offerLetterPath
-    });
-    await formData.save();
+      internshipInstitute, email, startDate, endDate
+    } = req.body;
 
-    const emailContent = `
-Name: ${name}
-Roll Number: ${rollNumber}
-College: ${college}
-Branch: ${branch}
-Semester: ${semester}
-Internship Institute: ${internshipInstitute}
-Start Date: ${new Date(startDate).toLocaleDateString()}
-End Date: ${new Date(endDate).toLocaleDateString()}
-Status: Pending
-    `;
+    if (!name || !rollNumber || !college || !branch || !semester ||
+        !internshipInstitute || !email || !startDate || !endDate) {
+      return res.status(400).json({ success: false, message: "All fields are required" });
+    }
 
-    const attachments = offerLetterPath
-      ? [{
-          filename: req.file.originalname || 'offer_letter.pdf',
-          path: offerLetterPath,
-          contentType: 'application/pdf'
-        }]
-      : [];
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "Offer letter file is required" });
+    }
 
-    // Send confirmation to student
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: "✅ Internship Application Form Submission",
-      text: `Your application has been submitted successfully.\n\n${emailContent}`,
-      attachments
+    const newSubmission = new FormModel({
+      name,
+      rollNumber,
+      college,
+      branch,
+      semester,
+      internshipInstitute,
+      email,
+      startDate,
+      endDate,
+      offerLetterPath: req.file.path,
     });
 
-    // Send notification to admin
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: process.env.ADMIN_EMAIL,
-      subject: "📩 New Internship Application",
-      text: `New Internship application received:\n\n${emailContent}`,
-      attachments
+    await newSubmission.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Internship form submitted successfully",
     });
 
-    res.status(200).json({ success: true, message: "Form submitted and emails sent!" });
-  } catch (error) {
-    console.error("Submit Form Error:", error);
-    res.status(500).json({ success: false, message: "Something went wrong." });
+  } catch (err) {
+    console.error("submitForm error:", err);
+    res.status(500).json({ success: false, message: "Server error. Try again later." });
   }
 };
 
