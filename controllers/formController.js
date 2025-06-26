@@ -69,18 +69,22 @@ export const getApplications = async (req, res) => {
 
 // Approve an application
 export const approveApplication = async (req, res) => {
-  const { id } = req.params;
-
   try {
+    const { id } = req.body;
+    if (!id) return res.status(400).json({ error: "ID is required" });
+
     const application = await FormModel.findByIdAndUpdate(
       id,
       { status: "Approved" },
       { new: true }
     );
 
-    if (!application) return res.status(404).json({ error: "Application not found" });
+    if (!application) {
+      return res.status(404).json({ success: false, error: "Application not found" });
+    }
 
-    const emailContent = `
+    if (application.email) {
+      const emailContent = `
 Your internship application has been Approved!
 
 Application Details:
@@ -93,31 +97,47 @@ End Date: ${new Date(application.endDate).toLocaleDateString()}
 
 Regards,
 RequestHub Team
-    `;
+      `;
 
-    const attachments = application.offerLetterPath
-      ? [{
-          filename: 'Approval_Offer_Letter.pdf',
-          path: application.offerLetterPath,
-          contentType: 'application/pdf'
-        }]
-      : [];
+      const attachments = [];
+      if (application.offerLetterPath) {
+        const absolutePath = path.join(__dirname, '../', application.offerLetterPath);
 
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: application.email,
-      subject: "✅ Internship Application Approved",
-      text: emailContent,
-      attachments
+        if (fs.existsSync(absolutePath)) {
+          attachments.push({
+            filename: 'Approval_Offer_Letter.pdf',
+            path: absolutePath,
+            contentType: 'application/pdf',
+          });
+        } else {
+          console.warn("Offer letter file not found:", absolutePath);
+        }
+      }
+
+      try {
+        await transporter.sendMail({
+          from: process.env.EMAIL_USER,
+          to: application.email,
+          subject: "✅ Internship Application Approved",
+          text: emailContent,
+          attachments: attachments,
+        });
+        console.log("Approval email sent to:", application.email);
+      } catch (emailError) {
+        console.error("Error sending approval email:", emailError);
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Internship application approved",
+      application,
     });
-
-    res.status(200).json({ success: true, application });
   } catch (error) {
-    console.error("Approve Application Error:", error);
-    res.status(500).json({ error: "Failed to approve application" });
+    console.error("Error approving application:", error);
+    res.status(500).json({ success: false, error: "Server error" });
   }
 };
-
 // Reject an application
 export const rejectApplication = async (req, res) => {
   const { id } = req.params;  // ✅ From URL
