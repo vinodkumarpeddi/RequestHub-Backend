@@ -30,8 +30,9 @@ const upload = multer({ storage }).single("offerLetter");
 router.post("/submit-form", upload, submitForm);
 
 router.get("/applications", getApplications);
-router.put("/approve-application", approveApplication);
-router.put("/reject-application", rejectApplication);
+// Change from PUT to PATCH for semantic correctness
+router.patch("/approve-application/:id", approveApplication);
+router.patch("/reject-application/:id", rejectApplication);
 router.delete("/delete-application/:id", deleteApplication);
 
 router.get("/applicationsApproved", getApprovedApplications);
