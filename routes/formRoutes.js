@@ -44,7 +44,7 @@ const upload = multer({ storage, fileFilter }).single("offerLetter");
 // Routes
 router.post("/submit-form", upload, submitForm);
 router.get("/applications", getApplications);
-router.put("/approve-application/", approveApplication);
+router.put("/approve-application", approveApplication);
 router.put("/reject-application/:id", rejectApplication);
 router.delete("/delete-application/:id", deleteApplication);
 router.get("/applicationsApproved", getApprovedApplications);
