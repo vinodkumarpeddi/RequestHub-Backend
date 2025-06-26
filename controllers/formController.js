@@ -5,7 +5,6 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-// Setup email transporter
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -14,18 +13,12 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Submit form controller
 export const submitForm = async (req, res) => {
   const {
     name, rollNumber, college, branch, semester,
     internshipInstitute, startDate, endDate, email
   } = req.body;
-
   const offerLetterPath = req.file ? req.file.path : null;
-
-  if (!name || !rollNumber || !email) {
-    return res.status(400).json({ error: "Name, roll number, and email are required." });
-  }
 
   try {
     const formData = new FormModel({
@@ -60,7 +53,7 @@ export const submitForm = async (req, res) => {
       to: email,
       subject: "✅Internship Application Form Submission",
       text: `Your application has been submitted successfully.\n\n${emailContent}`,
-      attachments
+      attachments: attachments
     });
 
     await transporter.sendMail({
@@ -68,7 +61,7 @@ export const submitForm = async (req, res) => {
       to: process.env.ADMIN_EMAIL,
       subject: "📩New Internship Application",
       text: `New Internship application received:\n\n${emailContent}`,
-      attachments
+      attachments: attachments
     });
 
     res.status(200).json({ success: true, message: "Form submitted and emails sent!" });
@@ -78,7 +71,6 @@ export const submitForm = async (req, res) => {
   }
 };
 
-// Get all applications
 export const getApplications = async (req, res) => {
   try {
     const applications = await FormModel.find().sort({ createdAt: -1 });
@@ -89,9 +81,8 @@ export const getApplications = async (req, res) => {
   }
 };
 
-// Approve application
 export const approveApplication = async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.body;
 
   try {
     const application = await FormModel.findByIdAndUpdate(
@@ -114,9 +105,8 @@ export const approveApplication = async (req, res) => {
       Internship Institute: ${application.internshipInstitute}
       Start Date: ${application.startDate}
       End Date: ${application.endDate}
-
-      Regards,
-      RequestHub Team
+      \n\n Regards
+      \n RequestHub Team
     `;
 
     const attachments = [];
@@ -133,7 +123,7 @@ export const approveApplication = async (req, res) => {
       to: application.email,
       subject: "Internship Application Approved",
       text: emailContent,
-      attachments
+      attachments: attachments
     });
 
     res.status(200).json({ success: true, application });
@@ -143,15 +133,13 @@ export const approveApplication = async (req, res) => {
   }
 };
 
-// Reject application
 export const rejectApplication = async (req, res) => {
-  const { id } = req.params;
-  const { reason } = req.body;
+  const { id, reason } = req.body;
 
   try {
     const application = await FormModel.findByIdAndUpdate(
       id,
-      { status: "Rejected" },
+      { status: "Rejected", rejectionReason: reason },
       { new: true }
     );
 
@@ -171,9 +159,9 @@ export const rejectApplication = async (req, res) => {
       End Date: ${application.endDate}
      
       Reason for Rejection: ${reason || 'Not specified'}
-
-      Regards,
-      RequestHub Team
+     
+      \n\nRegards,
+      \nRequestHub Team
     `;
 
     const attachments = [];
@@ -190,7 +178,7 @@ export const rejectApplication = async (req, res) => {
       to: application.email,
       subject: "Internship Application Rejected",
       text: emailContent,
-      attachments
+      attachments: attachments
     });
 
     res.status(200).json({ success: true, application });
@@ -200,7 +188,6 @@ export const rejectApplication = async (req, res) => {
   }
 };
 
-// Delete application
 export const deleteApplication = async (req, res) => {
   const { id } = req.params;
 
@@ -224,13 +211,12 @@ export const deleteApplication = async (req, res) => {
   }
 };
 
-// Get applications by status
 export const getApprovedApplications = async (req, res) => {
   try {
     const applications = await FormModel.find({ status: 'Approved' }).sort({ createdAt: -1 });
     res.status(200).json(applications);
   } catch (error) {
-    console.error("Error fetching approved applications:", error);
+    console.error("Error fetching applications:", error);
     res.status(500).json({ error: "Failed to fetch applications" });
   }
 };
@@ -240,7 +226,7 @@ export const getRejectedApplications = async (req, res) => {
     const applications = await FormModel.find({ status: 'Rejected' }).sort({ createdAt: -1 });
     res.status(200).json(applications);
   } catch (error) {
-    console.error("Error fetching rejected applications:", error);
+    console.error("Error fetching applications:", error);
     res.status(500).json({ error: "Failed to fetch applications" });
   }
 };
@@ -250,7 +236,7 @@ export const getPendingApplications = async (req, res) => {
     const applications = await FormModel.find({ status: 'Pending' }).sort({ createdAt: -1 });
     res.status(200).json(applications);
   } catch (error) {
-    console.error("Error fetching pending applications:", error);
+    console.error("Error fetching applications:", error);
     res.status(500).json({ error: "Failed to fetch applications" });
   }
 };
